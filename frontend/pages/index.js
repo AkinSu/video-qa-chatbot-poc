@@ -35,6 +35,7 @@ export default function Home() {
 
   return (
     <div style={{ maxWidth: 400, margin: 'auto', padding: 40 }}>
+      <h1>Hello Akin!</h1>
       <h1>Upload MP4 Video</h1>
       <form onSubmit={handleSubmit}>
         <input type="file" accept="video/mp4" onChange={handleFileChange} />
