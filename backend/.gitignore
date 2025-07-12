@@ -6,3 +6,5 @@ venv/
 .env
 uploads/
 keyframes/
+test.py
+*test*.py
