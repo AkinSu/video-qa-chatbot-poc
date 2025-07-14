@@ -33,7 +33,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-client = OpenAI(os.getenv("OPENAI_API_KEY"))
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 class AskRequest(BaseModel):
     video_id: str
@@ -132,3 +132,7 @@ Answer:"""
 
     # 5. Return answer
     return {"answer": answer} 
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000) 
