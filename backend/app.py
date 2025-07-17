@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 from starlette.responses import JSONResponse
 from keyframe_extractor import KeyFrameExtractor
 from pydantic import BaseModel
+from frame_context import FrameContextIndexer
+import requests
 
 load_dotenv()
 
@@ -23,6 +25,8 @@ app = FastAPI()
 
 # Initialize key frame extractor
 keyframe_extractor = KeyFrameExtractor(FFMPEG_PATH, FFPROBE_PATH)
+
+frame_context_indexer = FrameContextIndexer(KEYFRAMES_DIR)
 
 # Allow CORS for local frontend
 app.add_middleware(
@@ -49,16 +53,19 @@ async def upload_file(file: UploadFile = File(...)):
     with open(file_location, "wb") as f:
         f.write(await file.read())
     
-    # Extract key frames
+    # Extract key frames via Colab endpoint
     video_name = os.path.splitext(file.filename)[0]
-    keyframes_output_dir = os.path.join(KEYFRAMES_DIR, video_name)
-    
-    extraction_result = keyframe_extractor.extract_keyframes(
-        file_location, 
-        keyframes_output_dir
-    )
+    with open(file_location, "rb") as f:
+        files = {"file": (file.filename, f, "video/mp4")}
+        try:
+            resp = requests.post(f"{KEYFRAME_EXTRACTOR_URL}/extract_keyframes", files=files)
+            resp.raise_for_status()
+            extraction_result = resp.json()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Keyframe extraction error: {str(e)}")
     
     # Save extraction metadata
+    keyframes_output_dir = os.path.join(KEYFRAMES_DIR, video_name)
     metadata_file = os.path.join(keyframes_output_dir, "metadata.json")
     os.makedirs(keyframes_output_dir, exist_ok=True)
     with open(metadata_file, "w") as f:
@@ -132,6 +139,28 @@ Answer:"""
 
     # 5. Return answer
     return {"answer": answer} 
+
+@app.post("/frame_context/{video_id}/index")
+async def index_frame_context(video_id: str):
+    try:
+        resp = requests.post(f"{FRAME_CONTEXT_URL}/frame_context/{video_id}/index")
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.post("/frame_context/{video_id}/query")
+async def query_frame_context(video_id: str, request: Request):
+    data = await request.json()
+    query = data.get("query")
+    top_k = data.get("top_k", 3)
+    try:
+        payload = {"query": query, "top_k": top_k}
+        resp = requests.post(f"{FRAME_CONTEXT_URL}/frame_context/{video_id}/query", json=payload)
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 if __name__ == "__main__":
     import uvicorn

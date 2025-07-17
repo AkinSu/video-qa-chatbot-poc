@@ -3,6 +3,22 @@ import json
 import subprocess
 from typing import List, Dict, Tuple
 from pathlib import Path
+from transformers import BlipProcessor, BlipForConditionalGeneration
+import torch
+
+# Initialize the fast BLIP processor to silence warnings
+processor = BlipProcessor.from_pretrained(
+    "Salesforce/blip-image-captioning-base",
+    use_fast=True
+)
+
+# Load BLIP model with safetensors format to skip vulnerability check
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = BlipForConditionalGeneration.from_pretrained(
+    "Salesforce/blip-image-captioning-base",
+    torch_dtype=torch.float32,
+    use_safetensors=True       # ← correct way to tell HF to pick up .safetensors
+).to(device)
 
 class KeyFrameExtractor:
     def __init__(self, ffmpeg_path: str = "ffmpeg", ffprobe_path: str = "ffprobe"):
